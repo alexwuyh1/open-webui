@@ -1,5 +1,4 @@
 x.py
-yarn.lock
 .DS_Store
 node_modules
 /build
@@ -218,6 +217,7 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
+package-lock.json
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
@@ -310,3 +310,10 @@ dist
 cypress/videos
 cypress/screenshots
 .vscode/settings.json
+
+# Open WebUI Specific
+backend/data/*
+!backend/data/readme.txt
+
+.trae
+openspec
