@@ -28,15 +28,22 @@ FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS build
 ARG BUILD_HASH
 
 # Set Node.js options (heap limit Allocation failed - JavaScript heap out of memory)
-# ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 WORKDIR /app
 
 # to store git revision in build
-RUN apk add --no-cache git
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk add --no-cache git
 
-COPY package.json package-lock.json ./
-RUN npm ci --force
+COPY package.json pnpm-lock.yaml ./
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm config set proxy false && \
+    npm config set https-proxy false && \
+    npm install -g pnpm@9.14 && \
+    pnpm config set registry https://registry.npmmirror.com && \
+    pnpm install --frozen-lockfile --shamefully-hoist --ignore-scripts && \
+    pnpm rebuild esbuild @parcel/watcher sharp
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
@@ -124,7 +131,11 @@ RUN echo -n 00000000-0000-0000-0000-000000000000 > $HOME/.cache/chroma/telemetry
 RUN chown -R $UID:$GID /app $HOME
 
 # Install common system dependencies
-RUN apt-get update && \
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null; \
+    sed -i 's/security.debian.org/mirrors.aliyun.com\/debian-security/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's/security.debian.org/mirrors.aliyun.com\/debian-security/g' /etc/apt/sources.list 2>/dev/null; \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
     git build-essential pandoc gcc netcat-openbsd curl jq \
     libmariadb-dev \
@@ -136,7 +147,9 @@ RUN apt-get update && \
 COPY --chown=$UID:$GID ./backend/requirements.txt ./requirements.txt
 
 # Set UV_LINK_MODE to copy to prevent 0-byte file corruption in QEMU arm64 cross-builds
-ENV UV_LINK_MODE=copy
+ENV UV_LINK_MODE=copy \
+    PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
+    UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 
 RUN set -e; \
     pip3 install --no-cache-dir uv; \
