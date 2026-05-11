@@ -2310,5 +2310,18 @@
 	"Your usage stats have been successfully synced.": "已成功同步您的使用统计数据。",
 	"YouTube": "YouTube",
 	"Youtube Language": "Youtube 语言",
-	"Youtube Proxy URL": "Youtube 代理地址"
+	"Youtube Proxy URL": "Youtube 代理地址",
+	"Try as a Guest": "以访客身份试用",
+	"Guest": "访客",
+	"Total Guests": "访客总数",
+	"Expiring Soon": "即将过期",
+	"Reset Messages": "重置消息数",
+	"Reset Expiry": "重置有效期",
+	"Messages reset successfully": "消息数重置成功",
+	"Failed to reset messages": "重置消息数失败",
+	"Expiry reset successfully": "有效期重置成功",
+	"Failed to reset expiry": "重置有效期失败",
+	"Failed to load guest data": "加载访客数据失败",
+	"No guest users found": "未发现访客用户",
+	"Expires": "过期时间"
 }
