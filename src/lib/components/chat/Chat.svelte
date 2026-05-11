@@ -80,6 +80,7 @@
 		updateChatFolderIdById
 	} from '$lib/apis/chats';
 	import { generateOpenAIChatCompletion } from '$lib/apis/openai';
+	import { getSessionUser } from '$lib/apis/auths';
 	import { processWeb, processWebSearch, processYoutubeVideo } from '$lib/apis/retrieval';
 	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
 	import {
@@ -183,6 +184,32 @@
 	$: if (chatIdProp) {
 		navigateHandler();
 	}
+
+	$: if ($user?.role === 'guest' && $user?.guest_info) {
+		const remaining = $user.guest_info.remaining_messages ?? 0;
+		const max = $user.guest_info.max_messages ?? 10;
+		const threshold = max * 0.2;
+
+		if (remaining > 0 && remaining <= threshold && remaining % 2 === 0) {
+			toast.warning($i18n.t('Only {{count}} messages left', { count: remaining }));
+		}
+
+		if (remaining === 0) {
+			showGuestLimitReachedModal = true;
+		}
+
+		const expiryTs = $user.guest_info.expires_at;
+		if (expiryTs) {
+			const expiry = new Date(expiryTs * 1000);
+			const now = new Date();
+			if (now >= expiry) {
+				showGuestExpiredModal = true;
+			}
+		}
+	}
+
+	let showGuestLimitReachedModal = false;
+	let showGuestExpiredModal = false;
 
 	let saveControlsTimer;
 	$: if (!loading && !$temporaryChatEnabled && $chatId && params && chatFiles) {
@@ -468,11 +495,19 @@
 
 		if (event.chat_id === $chatId) {
 			await tick();
+
+			const eventType = event?.data?.type ?? null;
+			const eventData = event?.data?.data ?? null;
+
+			if (eventType === 'chat:guest:info') {
+				user.update((u) => ({ ...u, guest_info: eventData }));
+			}
+
 			let message = history.messages[event.message_id];
 
 			if (message) {
-				const type = event?.data?.type ?? null;
-				const data = event?.data?.data ?? null;
+				const type = eventType;
+				const data = eventData;
 
 				if (type === 'status') {
 					if (message?.statusHistory) {
@@ -2531,6 +2566,13 @@
 
 		await tick();
 		scrollToBottom();
+
+		if ($user?.role === 'guest') {
+			const updatedUser = await getSessionUser(localStorage.token).catch(() => null);
+			if (updatedUser) {
+				user.set(updatedUser);
+			}
+		}
 	};
 
 	const handleOpenAIError = async (error, responseMessage) => {
@@ -2959,6 +3001,92 @@
 	}}
 />
 
+{#if $user?.role === 'guest'}
+	{#if showGuestLimitReachedModal}
+		<div
+			class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center"
+			on:click={() => {
+				showGuestLimitReachedModal = false;
+			}}
+		>
+			<div
+				class="bg-white dark:bg-gray-850 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+				on:click|stopPropagation={() => {}}
+			>
+				<div class="text-center">
+					<div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+						<svg xmlns="http://www.w3.org/2000/svg" class="size-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+						</svg>
+					</div>
+					<h3 class="text-lg font-semibold mb-2">{$i18n.t('Message Limit Reached')}</h3>
+					<p class="text-gray-500 dark:text-gray-400 mb-6">
+						{$i18n.t("You've used all your guest messages. Sign up to continue using {{WEBUI_NAME}}.", { WEBUI_NAME: $WEBUI_NAME })}
+					</p>
+					<div class="flex gap-3">
+						<button
+							class="flex-1 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-sm font-medium"
+							on:click={() => {
+								showGuestLimitReachedModal = false;
+							}}
+						>
+							{$i18n.t('Later')}
+						</button>
+						<a
+							href="/auth"
+							class="flex-1 px-4 py-2 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition text-sm font-medium text-center"
+						>
+							{$i18n.t('Sign Up')}
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if showGuestExpiredModal}
+		<div
+			class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center"
+			on:click={() => {
+				showGuestExpiredModal = false;
+			}}
+		>
+			<div
+				class="bg-white dark:bg-gray-850 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+				on:click|stopPropagation={() => {}}
+			>
+				<div class="text-center">
+					<div class="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
+						<svg xmlns="http://www.w3.org/2000/svg" class="size-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+						</svg>
+					</div>
+					<h3 class="text-lg font-semibold mb-2">{$i18n.t('Session Expired')}</h3>
+					<p class="text-gray-500 dark:text-gray-400 mb-6">
+						{$i18n.t('Your guest session has expired. Sign up to continue using {{WEBUI_NAME}}.', { WEBUI_NAME: $WEBUI_NAME })}
+					</p>
+					<div class="flex gap-3">
+						<button
+							class="flex-1 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-sm font-medium"
+							on:click={() => {
+								showGuestExpiredModal = false;
+							}}
+						>
+							{$i18n.t('Later')}
+						</button>
+						<a
+							href="/auth"
+							class="flex-1 px-4 py-2 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition text-sm font-medium text-center"
+						>
+							{$i18n.t('Sign Up')}
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+{/if}
+
 <div
 	class="h-screen max-h-[100dvh] transition-width duration-200 ease-in-out {$showSidebar
 		? '  md:max-w-[calc(100%-var(--sidebar-width))]'
@@ -2986,6 +3114,17 @@
 				<div
 					class="absolute top-0 left-0 w-full h-full bg-linear-to-t from-white to-white/85 dark:from-gray-900 dark:to-gray-900/90 z-0"
 				/>
+			{/if}
+
+			{#if $user?.role === 'guest'}
+				<div class="w-full bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2 flex items-center gap-2 text-sm">
+					<div class="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs font-medium">
+						{$i18n.t('Guest')}
+					</div>
+					<span class="text-gray-700 dark:text-gray-300">
+						{$i18n.t('{{remaining}} messages remaining', { remaining: $user?.guest_info?.remaining_messages ?? 0 })}
+					</span>
+				</div>
 			{/if}
 
 			<PaneGroup direction="horizontal" class="w-full h-full">

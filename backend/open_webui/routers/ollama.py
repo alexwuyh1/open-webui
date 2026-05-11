@@ -61,7 +61,7 @@ from open_webui.utils.payload import (
     apply_model_params_to_body_openai,
     apply_system_prompt_to_body,
 )
-from open_webui.utils.auth import get_admin_user, get_verified_user, increment_guest_message_count
+from open_webui.utils.auth import get_admin_user, get_verified_user
 from open_webui.config import (
     UPLOAD_DIR,
 )
@@ -1288,9 +1288,6 @@ async def generate_openai_chat_completion(
     else:
         await check_model_access(user, None)
 
-    if user.role == 'guest':
-        await increment_guest_message_count(user, request)
-
     url, url_idx = await get_ollama_url(request, payload['model'], url_idx)
     api_config = request.app.state.config.OLLAMA_API_CONFIGS.get(
         str(url_idx),
@@ -1342,9 +1339,6 @@ async def generate_anthropic_messages(
         await check_model_access(user, model_info)
     else:
         await check_model_access(user, None)
-
-    if user.role == 'guest':
-        await increment_guest_message_count(user, request)
 
     url, url_idx = await get_ollama_url(request, payload['model'], url_idx)
     api_config = request.app.state.config.OLLAMA_API_CONFIGS.get(

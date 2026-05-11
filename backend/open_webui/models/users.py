@@ -837,6 +837,7 @@ class UsersTable:
         name: str,
         max_messages: int,
         expiry_days: int,
+        password: Optional[str] = None,
         db: Optional[AsyncSession] = None,
     ) -> Optional[UserModel]:
         now = int(time.time())
@@ -864,6 +865,13 @@ class UsersTable:
             )
             result = User(**user.model_dump())
             db.add(result)
+
+            if password:
+                from open_webui.models.auths import Auth, AuthModel
+                auth = AuthModel(**{'id': id, 'email': email, 'password': password, 'active': True})
+                auth_result = Auth(**auth.model_dump())
+                db.add(auth_result)
+
             await db.commit()
             await db.refresh(result)
             if result:
@@ -882,7 +890,10 @@ class UsersTable:
                     return False
                 if 'guest' not in user.info:
                     return False
-                user.info['guest']['message_count'] = count
+                import copy
+                info = copy.deepcopy(user.info)
+                info['guest']['message_count'] = count
+                user.info = info
                 await db.commit()
                 return True
         except Exception:
@@ -918,12 +929,15 @@ class UsersTable:
                     user = result.scalars().first()
                     if not user or not user.info or 'guest' not in user.info:
                         return None
-                    current_count = user.info['guest'].get('message_count', 0)
+                    import copy
+                    info = copy.deepcopy(user.info)
+                    current_count = info['guest'].get('message_count', 0)
                     if current_count >= max_messages:
                         return None
-                    user.info['guest']['message_count'] = current_count + 1
+                    info['guest']['message_count'] = current_count + 1
+                    user.info = info
                     await db.commit()
-                    return user.info['guest']['message_count']
+                    return current_count + 1
         except Exception:
             return None
 
@@ -936,9 +950,12 @@ class UsersTable:
                 user = result.scalars().first()
                 if not user or not user.info or 'guest' not in user.info:
                     return None
-                user.info['guest']['message_count'] = 0
+                import copy
+                info = copy.deepcopy(user.info)
+                info['guest']['message_count'] = 0
                 if new_max is not None:
-                    user.info['guest']['max_messages'] = new_max
+                    info['guest']['max_messages'] = new_max
+                user.info = info
                 await db.commit()
                 await db.refresh(user)
                 return UserModel.model_validate(user)
@@ -954,14 +971,17 @@ class UsersTable:
                 user = result.scalars().first()
                 if not user or not user.info or 'guest' not in user.info:
                     return None
+                import copy
+                info = copy.deepcopy(user.info)
                 now = int(time.time())
                 if new_expiry_days is not None:
-                    user.info['guest']['expires_at'] = now + (new_expiry_days * 24 * 60 * 60)
+                    info['guest']['expires_at'] = now + (new_expiry_days * 24 * 60 * 60)
                 else:
-                    original_created_at = user.info['guest'].get('created_at', now)
-                    user.info['guest']['expires_at'] = original_created_at + (
-                        user.info['guest'].get('max_messages', 7) * 24 * 60 * 60
+                    original_created_at = info['guest'].get('created_at', now)
+                    info['guest']['expires_at'] = original_created_at + (
+                        info['guest'].get('max_messages', 7) * 24 * 60 * 60
                     )
+                user.info = info
                 await db.commit()
                 await db.refresh(user)
                 return UserModel.model_validate(user)

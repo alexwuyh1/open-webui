@@ -565,6 +565,7 @@ from open_webui.utils.auth import (
     get_admin_user,
     get_verified_user,
     create_admin_user,
+    increment_guest_message_count,
 )
 from open_webui.utils.plugin import install_tool_and_function_dependencies
 from open_webui.utils.oauth import (
@@ -1970,6 +1971,22 @@ async def chat_completion(
 
     async def process_chat(request, form_data, user, metadata, model, tasks=None):
         try:
+            if user.role == 'guest':
+                new_count = await increment_guest_message_count(user, request)
+                guest_info = (user.info or {}).get('guest', {})
+                max_messages = guest_info.get('max_messages', 10)
+                expires_at = guest_info.get('expires_at', 0)
+                ee = await get_event_emitter(metadata)
+                await ee({
+                    'type': 'chat:guest:info',
+                    'data': {
+                        'message_count': new_count,
+                        'max_messages': max_messages,
+                        'remaining_messages': max_messages - new_count,
+                        'expires_at': expires_at,
+                    },
+                })
+
             form_data, metadata, events = await process_chat_payload(request, form_data, user, metadata, model)
 
             response = await chat_completion_handler(request, form_data, user)
@@ -2454,7 +2471,7 @@ async def get_app_config(request: Request):
                     else {}
                 ),
             }
-            if user is not None and (user.role in ['admin', 'user'])
+            if user is not None and (user.role in ['admin', 'user', 'guest'])
             else {
                 **(
                     {

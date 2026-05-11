@@ -16,9 +16,22 @@ cleanup_port() {
     sleep 1
 }
 
+cleanup_port "$PORT"
+
 if [ "$MODE" = "dev" ]; then
     export CORS_ALLOW_ORIGIN="http://localhost:5173;http://localhost:${PORT}"
-    exec "$SCRIPT_DIR/.venv/bin/python" -m uvicorn open_webui.main:app \
+
+    # Start frontend Vite dev server in background
+    echo "Starting frontend dev server on http://localhost:5173 ..."
+    cd "$SCRIPT_DIR"
+    npm run dev -- --host --port 5173 &
+    VITE_PID=$!
+    cd "$SCRIPT_DIR/backend"
+
+    # Clean up Vite when backend exits
+    trap "kill $VITE_PID 2>/dev/null" EXIT
+
+    "$SCRIPT_DIR/.venv/bin/python" -m uvicorn open_webui.main:app \
         --host "$HOST" --port "$PORT" --reload --ws auto
 else
     exec "$SCRIPT_DIR/.venv/bin/python" -m uvicorn open_webui.main:app \

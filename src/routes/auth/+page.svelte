@@ -25,9 +25,12 @@
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import OnBoarding from '$lib/components/OnBoarding.svelte';
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
+	import GuestSignupModal from '$lib/components/GuestSignupModal.svelte';
 	import { redirect } from '@sveltejs/kit';
 
 	const i18n = getContext('i18n');
+
+	let showGuestSignup = false;
 
 	let loaded = false;
 
@@ -411,6 +414,21 @@
 													</button>
 												</div>
 											{/if}
+
+											{#if !($config?.onboarding ?? false) && mode === 'signin'}
+												<div class="mt-2 text-sm text-center text-gray-500 dark:text-gray-400">
+													{$i18n.t('or')}{' '}
+													<button
+														class="underline hover:text-blue-500 dark:hover:text-blue-400"
+														type="button"
+														on:click={() => {
+															showGuestSignup = true;
+														}}
+													>
+														{$i18n.t('Try as a Guest')}
+													</button>
+												</div>
+											{/if}
 										{/if}
 									{/if}
 								</div>
@@ -585,6 +603,8 @@
 				{/if}
 			</div>
 		</div>
+
+		<GuestSignupModal bind:show={showGuestSignup} />
 
 		{#if !$config?.metadata?.auth_logo_position}
 			<div class="fixed m-10 z-50">

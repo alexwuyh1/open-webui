@@ -140,6 +140,7 @@ async def create_session_response(
         )
 
     user_permissions = await get_permissions(user.id, request.app.state.config.USER_PERMISSIONS, db=db)
+    guest_info = user.info.get('guest', {}) if user.info else {}
 
     return {
         'token': token,
@@ -151,6 +152,19 @@ async def create_session_response(
         'role': user.role,
         'profile_image_url': f'/api/v1/users/{user.id}/profile/image',
         'permissions': user_permissions,
+        **(
+            {
+                'guest_info': {
+                    'remaining_messages': max(0, guest_info.get('max_messages', 10) - guest_info.get('message_count', 0)),
+                    'max_messages': guest_info.get('max_messages', 10),
+                    'message_count': guest_info.get('message_count', 0),
+                    'expires_at': guest_info.get('expires_at', 0),
+                    'created_at': guest_info.get('created_at', 0),
+                }
+            }
+            if user.role == 'guest' and user.info and 'guest' in user.info
+            else {}
+        ),
     }
 
 
@@ -162,12 +176,14 @@ async def create_session_response(
 class SessionUserResponse(Token, UserProfileImageResponse):
     expires_at: Optional[int] = None
     permissions: Optional[dict] = None
+    guest_info: Optional[dict] = None
 
 
 class SessionUserInfoResponse(SessionUserResponse, UserStatus):
     bio: Optional[str] = None
     gender: Optional[str] = None
     date_of_birth: Optional[datetime.date] = None
+    guest_info: Optional[dict] = None
 
 
 @router.get('/', response_model=SessionUserInfoResponse)
@@ -213,6 +229,7 @@ async def get_session_user(
         )
 
     user_permissions = await get_permissions(user.id, request.app.state.config.USER_PERMISSIONS, db=db)
+    guest_info = user.info.get('guest', {}) if user.info else {}
 
     return {
         'token': token,
@@ -230,6 +247,19 @@ async def get_session_user(
         'status_message': user.status_message,
         'status_expires_at': user.status_expires_at,
         'permissions': user_permissions,
+        **(
+            {
+                'guest_info': {
+                    'remaining_messages': max(0, guest_info.get('max_messages', 10) - guest_info.get('message_count', 0)),
+                    'max_messages': guest_info.get('max_messages', 10),
+                    'message_count': guest_info.get('message_count', 0),
+                    'expires_at': guest_info.get('expires_at', 0),
+                    'created_at': guest_info.get('created_at', 0),
+                }
+            }
+            if user.role == 'guest'
+            else {}
+        ),
     }
 
 
@@ -792,6 +822,7 @@ async def signup(
 
 class GuestSignupForm(BaseModel):
     email: str
+    password: Optional[str] = None
 
 
 class GuestSignupResponse(BaseModel):
@@ -802,10 +833,8 @@ class GuestSignupResponse(BaseModel):
     email: str
     name: str
     role: str
-    message_count: int
-    max_messages: int
-    remaining_messages: int
-    expires_at_guest: int
+    guest_info: dict
+    permissions: Optional[dict] = None
 
 
 @router.post('/guest/signup', response_model=GuestSignupResponse)
@@ -829,17 +858,32 @@ async def guest_signup(
     expiry_days = GUEST_EXPIRY_DAYS.value
     token_expiry_hours = GUEST_TOKEN_EXPIRY_HOURS.value
 
+    hashed_password = None
+    if form_data.password:
+        try:
+            validate_password(form_data.password)
+            hashed_password = get_password_hash(form_data.password)
+        except Exception as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     user = await Users.insert_guest_user(
         id=user_id,
         email=form_data.email.lower(),
         name=f"Guest_{user_id[:8]}",
         max_messages=max_messages,
         expiry_days=expiry_days,
+        password=hashed_password,
         db=db,
     )
 
     if not user:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to create guest user')
+
+    await apply_default_group_assignment(
+        request.app.state.config.DEFAULT_GROUP_ID,
+        user.id,
+        db=db,
+    )
 
     token_expiry = datetime.timedelta(hours=token_expiry_hours)
     token = create_token(
@@ -849,6 +893,7 @@ async def guest_signup(
 
     expires_at = int(time.time()) + int(token_expiry.total_seconds())
     guest_info = user.info.get('guest', {})
+    user_permissions = await get_permissions(user.id, request.app.state.config.USER_PERMISSIONS, db=db)
 
     return {
         'token': token,
@@ -858,10 +903,13 @@ async def guest_signup(
         'email': user.email,
         'name': user.name,
         'role': user.role,
-        'message_count': guest_info.get('message_count', 0),
-        'max_messages': guest_info.get('max_messages', max_messages),
-        'remaining_messages': guest_info.get('max_messages', max_messages) - guest_info.get('message_count', 0),
-        'expires_at_guest': guest_info.get('expires_at', 0),
+        'permissions': user_permissions,
+        'guest_info': {
+            'message_count': guest_info.get('message_count', 0),
+            'max_messages': guest_info.get('max_messages', max_messages),
+            'remaining_messages': guest_info.get('max_messages', max_messages) - guest_info.get('message_count', 0),
+            'expires_at': guest_info.get('expires_at', 0),
+        },
     }
 
 

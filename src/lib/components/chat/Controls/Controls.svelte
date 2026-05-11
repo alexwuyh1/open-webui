@@ -46,7 +46,7 @@
 		</div>
 	{/if}
 
-	{#if $user?.role === 'admin' || ($user?.permissions.chat?.controls ?? true)}
+	{#if $user?.role === 'admin' || ($user?.permissions?.chat?.controls ?? true)}
 		<div class=" dark:text-gray-200 text-sm py-0.5 px-0.5">
 			{#if chatFiles.length > 0}
 				<Collapsible
@@ -84,7 +84,7 @@
 				<hr class="my-2 border-gray-50 dark:border-gray-700/10" />
 			{/if}
 
-			{#if $user?.role === 'admin' || ($user?.permissions.chat?.valves ?? true)}
+			{#if $user?.role === 'admin' || ($user?.permissions?.chat?.valves ?? true)}
 				<Collapsible
 					bind:open={showValves}
 					onChange={setOpen('valves')}
@@ -99,7 +99,7 @@
 				<hr class="my-2 border-gray-50 dark:border-gray-700/10" />
 			{/if}
 
-			{#if $user?.role === 'admin' || ($user?.permissions.chat?.system_prompt ?? true)}
+			{#if $user?.role === 'admin' || ($user?.permissions?.chat?.system_prompt ?? true)}
 				<Collapsible
 					title={$i18n.t('System Prompt')}
 					bind:open={showSystemPrompt}
@@ -121,7 +121,7 @@
 				<hr class="my-2 border-gray-50 dark:border-gray-700/10" />
 			{/if}
 
-			{#if $user?.role === 'admin' || ($user?.permissions.chat?.params ?? true)}
+			{#if $user?.role === 'admin' || ($user?.permissions?.chat?.params ?? true)}
 				<Collapsible
 					title={$i18n.t('Advanced Params')}
 					bind:open={showAdvancedParams}
