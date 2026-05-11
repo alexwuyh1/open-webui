@@ -42,6 +42,7 @@ from open_webui.env import (
     ENABLE_INITIAL_ADMIN_SIGNUP,
     ENABLE_OAUTH_TOKEN_EXCHANGE,
     AIOHTTP_CLIENT_SESSION_SSL,
+    REDIS_KEY_PREFIX,
 )
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response, JSONResponse
@@ -53,6 +54,10 @@ from open_webui.config import (
     ENABLE_PASSWORD_AUTH,
     OAUTH_PROVIDERS,
     OAUTH_MERGE_ACCOUNTS_BY_EMAIL,
+    GUEST_ENABLED,
+    GUEST_MAX_MESSAGES,
+    GUEST_EXPIRY_DAYS,
+    GUEST_TOKEN_EXPIRY_HOURS,
 )
 from open_webui.utils.oauth import auth_manager_config
 from pydantic import BaseModel
@@ -783,6 +788,276 @@ async def signup(
     except Exception as err:
         log.error(f'Signup error: {str(err)}')
         raise HTTPException(500, detail='An internal error occurred during signup.')
+
+
+class GuestSignupForm(BaseModel):
+    email: str
+
+
+class GuestSignupResponse(BaseModel):
+    token: str
+    token_type: str
+    expires_at: int
+    id: str
+    email: str
+    name: str
+    role: str
+    message_count: int
+    max_messages: int
+    remaining_messages: int
+    expires_at_guest: int
+
+
+@router.post('/guest/signup', response_model=GuestSignupResponse)
+async def guest_signup(
+    request: Request,
+    form_data: GuestSignupForm,
+    db: AsyncSession = Depends(get_async_session),
+):
+    if not GUEST_ENABLED.value:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED)
+
+    if not validate_email_format(form_data.email.lower()):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.INVALID_EMAIL_FORMAT)
+
+    existing_user = await Users.get_user_by_email(form_data.email.lower(), db=db)
+    if existing_user:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=ERROR_MESSAGES.EMAIL_TAKEN)
+
+    user_id = str(uuid.uuid4())
+    max_messages = GUEST_MAX_MESSAGES.value
+    expiry_days = GUEST_EXPIRY_DAYS.value
+    token_expiry_hours = GUEST_TOKEN_EXPIRY_HOURS.value
+
+    user = await Users.insert_guest_user(
+        id=user_id,
+        email=form_data.email.lower(),
+        name=f"Guest_{user_id[:8]}",
+        max_messages=max_messages,
+        expiry_days=expiry_days,
+        db=db,
+    )
+
+    if not user:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to create guest user')
+
+    token_expiry = datetime.timedelta(hours=token_expiry_hours)
+    token = create_token(
+        data={'id': user.id},
+        expires_delta=token_expiry,
+    )
+
+    expires_at = int(time.time()) + int(token_expiry.total_seconds())
+    guest_info = user.info.get('guest', {})
+
+    return {
+        'token': token,
+        'token_type': 'Bearer',
+        'expires_at': expires_at,
+        'id': user.id,
+        'email': user.email,
+        'name': user.name,
+        'role': user.role,
+        'message_count': guest_info.get('message_count', 0),
+        'max_messages': guest_info.get('max_messages', max_messages),
+        'remaining_messages': guest_info.get('max_messages', max_messages) - guest_info.get('message_count', 0),
+        'expires_at_guest': guest_info.get('expires_at', 0),
+    }
+
+
+class GuestUserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+    role: str
+    message_count: int
+    max_messages: int
+    remaining_messages: int
+    expires_at: int
+    created_at: int
+    is_active: bool
+
+
+class GuestListResponse(BaseModel):
+    users: list[GuestUserResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+class ResetMessagesForm(BaseModel):
+    max_messages: Optional[int] = None
+
+
+class ResetExpiryForm(BaseModel):
+    expiry_days: Optional[int] = None
+
+
+class ResetGuestForm(BaseModel):
+    max_messages: Optional[int] = None
+    expiry_days: Optional[int] = None
+
+
+class GuestStatsResponse(BaseModel):
+    total: int
+    active: int
+    expired: int
+    limit_reached: int
+
+
+@router.get('/guest/users', response_model=GuestListResponse)
+async def list_guest_users(
+    request: Request,
+    offset: int = 0,
+    limit: int = 50,
+    user=Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    users, total = await Users.get_guest_users(db=db, offset=offset, limit=limit)
+    now = int(time.time())
+
+    guest_users = []
+    for u in users:
+        guest_info = u.info.get('guest', {}) if u.info else {}
+        expires_at = guest_info.get('expires_at', 0)
+        message_count = guest_info.get('message_count', 0)
+        max_messages = guest_info.get('max_messages', 10)
+        is_active = now <= expires_at and message_count < max_messages
+
+        guest_users.append(GuestUserResponse(
+            id=u.id,
+            email=u.email,
+            name=u.name,
+            role=u.role,
+            message_count=message_count,
+            max_messages=max_messages,
+            remaining_messages=max(0, max_messages - message_count),
+            expires_at=expires_at,
+            created_at=guest_info.get('created_at', 0),
+            is_active=is_active,
+        ))
+
+    return GuestListResponse(
+        users=guest_users,
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.put('/guest/{user_id}/reset-messages', response_model=GuestUserResponse)
+async def reset_guest_messages(
+    user_id: str,
+    form_data: ResetMessagesForm,
+    request: Request,
+    user=Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    target_user = await Users.get_user_by_id(user_id, db=db)
+    if not target_user or target_user.role != 'guest':
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Guest user not found')
+
+    result = await Users.reset_guest_message_count(user_id, new_max=form_data.max_messages, db=db)
+    if not result:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to reset guest message count')
+
+    if request.app.state.redis:
+        await request.app.state.redis.delete(f'{REDIS_KEY_PREFIX}:guest:msg_count:{user_id}')
+
+    guest_info = result.info.get('guest', {})
+    return GuestUserResponse(
+        id=result.id,
+        email=result.email,
+        name=result.name,
+        role=result.role,
+        message_count=guest_info.get('message_count', 0),
+        max_messages=guest_info.get('max_messages', 10),
+        remaining_messages=guest_info.get('max_messages', 10) - guest_info.get('message_count', 0),
+        expires_at=guest_info.get('expires_at', 0),
+        created_at=guest_info.get('created_at', 0),
+        is_active=True,
+    )
+
+
+@router.put('/guest/{user_id}/reset-expiry', response_model=GuestUserResponse)
+async def reset_guest_expiry(
+    user_id: str,
+    form_data: ResetExpiryForm,
+    request: Request,
+    user=Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    target_user = await Users.get_user_by_id(user_id, db=db)
+    if not target_user or target_user.role != 'guest':
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Guest user not found')
+
+    result = await Users.reset_guest_expiry(user_id, new_expiry_days=form_data.expiry_days, db=db)
+    if not result:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to reset guest expiry')
+
+    guest_info = result.info.get('guest', {})
+    now = int(time.time())
+    is_active = now <= guest_info.get('expires_at', 0) and guest_info.get('message_count', 0) < guest_info.get('max_messages', 10)
+
+    return GuestUserResponse(
+        id=result.id,
+        email=result.email,
+        name=result.name,
+        role=result.role,
+        message_count=guest_info.get('message_count', 0),
+        max_messages=guest_info.get('max_messages', 10),
+        remaining_messages=guest_info.get('max_messages', 10) - guest_info.get('message_count', 0),
+        expires_at=guest_info.get('expires_at', 0),
+        created_at=guest_info.get('created_at', 0),
+        is_active=is_active,
+    )
+
+
+@router.put('/guest/{user_id}/reset', response_model=GuestUserResponse)
+async def reset_guest(
+    user_id: str,
+    form_data: ResetGuestForm,
+    request: Request,
+    user=Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    target_user = await Users.get_user_by_id(user_id, db=db)
+    if not target_user or target_user.role != 'guest':
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Guest user not found')
+
+    await Users.reset_guest_message_count(user_id, new_max=form_data.max_messages, db=db)
+    await Users.reset_guest_expiry(user_id, new_expiry_days=form_data.expiry_days, db=db)
+
+    if request.app.state.redis:
+        await request.app.state.redis.delete(f'{REDIS_KEY_PREFIX}:guest:msg_count:{user_id}')
+
+    result = await Users.get_user_by_id(user_id, db=db)
+    guest_info = result.info.get('guest', {})
+    now = int(time.time())
+    is_active = now <= guest_info.get('expires_at', 0) and guest_info.get('message_count', 0) < guest_info.get('max_messages', 10)
+
+    return GuestUserResponse(
+        id=result.id,
+        email=result.email,
+        name=result.name,
+        role=result.role,
+        message_count=guest_info.get('message_count', 0),
+        max_messages=guest_info.get('max_messages', 10),
+        remaining_messages=guest_info.get('max_messages', 10) - guest_info.get('message_count', 0),
+        expires_at=guest_info.get('expires_at', 0),
+        created_at=guest_info.get('created_at', 0),
+        is_active=is_active,
+    )
+
+
+@router.get('/guest/stats', response_model=GuestStatsResponse)
+async def get_guest_stats(
+    request: Request,
+    user=Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    stats = await Users.get_guest_stats(db=db)
+    return GuestStatsResponse(**stats)
 
 
 @router.post('/signout')

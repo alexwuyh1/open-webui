@@ -830,5 +830,208 @@ class UsersTable:
                 return user.last_active_at >= three_minutes_ago
             return False
 
+    async def insert_guest_user(
+        self,
+        id: str,
+        email: str,
+        name: str,
+        max_messages: int,
+        expiry_days: int,
+        db: Optional[AsyncSession] = None,
+    ) -> Optional[UserModel]:
+        now = int(time.time())
+        expires_at = now + (expiry_days * 24 * 60 * 60)
+        async with get_async_db_context(db) as db:
+            user = UserModel(
+                **{
+                    'id': id,
+                    'email': email,
+                    'name': name,
+                    'role': 'guest',
+                    'profile_image_url': '/user.png',
+                    'info': {
+                        'guest': {
+                            'message_count': 0,
+                            'max_messages': max_messages,
+                            'expires_at': expires_at,
+                            'created_at': now,
+                        }
+                    },
+                    'last_active_at': now,
+                    'created_at': now,
+                    'updated_at': now,
+                }
+            )
+            result = User(**user.model_dump())
+            db.add(result)
+            await db.commit()
+            await db.refresh(result)
+            if result:
+                return user
+            else:
+                return None
+
+    async def update_guest_message_count(
+        self, id: str, count: int, db: Optional[AsyncSession] = None
+    ) -> bool:
+        try:
+            async with get_async_db_context(db) as db:
+                result = await db.execute(select(User).filter_by(id=id))
+                user = result.scalars().first()
+                if not user or not user.info:
+                    return False
+                if 'guest' not in user.info:
+                    return False
+                user.info['guest']['message_count'] = count
+                await db.commit()
+                return True
+        except Exception:
+            return False
+
+    async def atomic_increment_guest_message_count(
+        self, id: str, max_messages: int, db: Optional[AsyncSession] = None
+    ) -> Optional[int]:
+        try:
+            async with get_async_db_context(db) as db:
+                dialect_name = db.bind.dialect.name
+                if dialect_name == 'postgresql':
+                    result = await db.execute(
+                        update(User)
+                        .where(
+                            User.id == id,
+                            cast(User.info['guest']['message_count'].as_integer(), BigInteger) < max_messages,
+                        )
+                        .values(
+                            info=func.jsonb_set(
+                                User.info,
+                                ['guest', 'message_count'],
+                                (cast(User.info['guest']['message_count'].as_integer(), BigInteger) + 1).cast(Text).cast(JSONB),
+                            )
+                        )
+                        .returning(cast(User.info['guest']['message_count'].as_integer(), BigInteger))
+                    )
+                    row = result.fetchone()
+                    await db.commit()
+                    return row[0] if row else None
+                else:
+                    result = await db.execute(select(User).filter_by(id=id))
+                    user = result.scalars().first()
+                    if not user or not user.info or 'guest' not in user.info:
+                        return None
+                    current_count = user.info['guest'].get('message_count', 0)
+                    if current_count >= max_messages:
+                        return None
+                    user.info['guest']['message_count'] = current_count + 1
+                    await db.commit()
+                    return user.info['guest']['message_count']
+        except Exception:
+            return None
+
+    async def reset_guest_message_count(
+        self, id: str, new_max: Optional[int] = None, db: Optional[AsyncSession] = None
+    ) -> Optional[UserModel]:
+        try:
+            async with get_async_db_context(db) as db:
+                result = await db.execute(select(User).filter_by(id=id))
+                user = result.scalars().first()
+                if not user or not user.info or 'guest' not in user.info:
+                    return None
+                user.info['guest']['message_count'] = 0
+                if new_max is not None:
+                    user.info['guest']['max_messages'] = new_max
+                await db.commit()
+                await db.refresh(user)
+                return UserModel.model_validate(user)
+        except Exception:
+            return None
+
+    async def reset_guest_expiry(
+        self, id: str, new_expiry_days: Optional[int] = None, db: Optional[AsyncSession] = None
+    ) -> Optional[UserModel]:
+        try:
+            async with get_async_db_context(db) as db:
+                result = await db.execute(select(User).filter_by(id=id))
+                user = result.scalars().first()
+                if not user or not user.info or 'guest' not in user.info:
+                    return None
+                now = int(time.time())
+                if new_expiry_days is not None:
+                    user.info['guest']['expires_at'] = now + (new_expiry_days * 24 * 60 * 60)
+                else:
+                    original_created_at = user.info['guest'].get('created_at', now)
+                    user.info['guest']['expires_at'] = original_created_at + (
+                        user.info['guest'].get('max_messages', 7) * 24 * 60 * 60
+                    )
+                await db.commit()
+                await db.refresh(user)
+                return UserModel.model_validate(user)
+        except Exception:
+            return None
+
+    async def get_guest_users(
+        self, db: Optional[AsyncSession] = None, offset: int = 0, limit: int = 50
+    ) -> tuple[list[UserModel], int]:
+        try:
+            async with get_async_db_context(db) as db:
+                count_result = await db.execute(
+                    select(func.count()).select_from(User).filter(User.role == 'guest')
+                )
+                total = count_result.scalar() or 0
+
+                result = await db.execute(
+                    select(User)
+                    .filter(User.role == 'guest')
+                    .order_by(User.created_at.desc())
+                    .offset(offset)
+                    .limit(limit)
+                )
+                users = result.scalars().all()
+                return [UserModel.model_validate(u) for u in users], total
+        except Exception:
+            return [], 0
+
+    async def get_guest_stats(self, db: Optional[AsyncSession] = None) -> dict:
+        try:
+            async with get_async_db_context(db) as db:
+                now = int(time.time())
+                total_result = await db.execute(
+                    select(func.count()).select_from(User).filter(User.role == 'guest')
+                )
+                total = total_result.scalar() or 0
+
+                active_result = await db.execute(
+                    select(func.count()).select_from(User).filter(
+                        User.role == 'guest',
+                        cast(User.info['guest']['expires_at'].as_integer(), BigInteger) > now,
+                        cast(User.info['guest']['message_count'].as_integer(), BigInteger) < cast(User.info['guest']['max_messages'].as_integer(), BigInteger),
+                    )
+                )
+                active = active_result.scalar() or 0
+
+                expired_result = await db.execute(
+                    select(func.count()).select_from(User).filter(
+                        User.role == 'guest',
+                        cast(User.info['guest']['expires_at'].as_integer(), BigInteger) <= now,
+                    )
+                )
+                expired = expired_result.scalar() or 0
+
+                limit_reached_result = await db.execute(
+                    select(func.count()).select_from(User).filter(
+                        User.role == 'guest',
+                        cast(User.info['guest']['message_count'].as_integer(), BigInteger) >= cast(User.info['guest']['max_messages'].as_integer(), BigInteger),
+                    )
+                )
+                limit_reached = limit_reached_result.scalar() or 0
+
+                return {
+                    'total': total,
+                    'active': active,
+                    'expired': expired,
+                    'limit_reached': limit_reached,
+                }
+        except Exception:
+            return {'total': 0, 'active': 0, 'expired': 0, 'limit_reached': 0}
+
 
 Users = UsersTable()

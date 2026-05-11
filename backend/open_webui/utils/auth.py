@@ -456,12 +456,76 @@ async def get_current_user_by_api_key(request, api_key: str):
 
 
 def get_verified_user(user=Depends(get_current_user)):
-    if user.role not in {'user', 'admin'}:
+    if user.role not in {'user', 'admin', 'guest'}:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
+
+    if user.role == 'guest':
+        validate_guest_access(user)
+
     return user
+
+
+def validate_guest_access(user):
+    if not user.info or 'guest' not in user.info:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
+
+    guest_info = user.info['guest']
+    now = int(time.time())
+
+    expires_at = guest_info.get('expires_at', 0)
+    if now > expires_at:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Guest session has expired',
+        )
+
+    message_count = guest_info.get('message_count', 0)
+    max_messages = guest_info.get('max_messages', 10)
+    if message_count >= max_messages:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Guest message limit reached',
+        )
+
+
+async def increment_guest_message_count(user, request=None):
+    if user.role != 'guest':
+        return None
+
+    if not user.info or 'guest' not in user.info:
+        return None
+
+    guest_info = user.info['guest']
+    max_messages = guest_info.get('max_messages', 10)
+
+    redis_client = None
+    if request and hasattr(request, 'app') and hasattr(request.app, 'state') and hasattr(request.app.state, 'redis'):
+        redis_client = request.app.state.redis
+
+    if redis_client:
+        redis_count = await redis_client.incr(f'{REDIS_KEY_PREFIX}:guest:msg_count:{user.id}')
+        if redis_count > max_messages:
+            await redis_client.decr(f'{REDIS_KEY_PREFIX}:guest:msg_count:{user.id}')
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Guest message limit reached',
+            )
+        await Users.update_guest_message_count(user.id, count=redis_count)
+        return redis_count
+    else:
+        new_count = await Users.atomic_increment_guest_message_count(user.id, max_messages)
+        if new_count is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Guest message limit reached',
+            )
+        return new_count
 
 
 def get_admin_user(user=Depends(get_current_user)):

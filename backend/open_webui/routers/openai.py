@@ -61,7 +61,7 @@ from open_webui.utils.session_pool import (
     stream_wrapper,
 )
 
-from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.auth import get_admin_user, get_verified_user, increment_guest_message_count
 from open_webui.utils.headers import include_user_info_headers, get_custom_headers
 from open_webui.utils.anthropic import is_anthropic_url, get_anthropic_models
 
@@ -1124,6 +1124,9 @@ async def generate_chat_completion(
         await check_model_access(user, model_info, bypass_filter)
     else:
         await check_model_access(user, None, bypass_filter)
+
+    if user.role == 'guest':
+        await increment_guest_message_count(user, request)
 
     # Check if model is already in app state cache to avoid expensive get_all_models() call
     models = request.app.state.OPENAI_MODELS

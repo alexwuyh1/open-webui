@@ -1691,6 +1691,30 @@ ENABLE_USER_STATUS = PersistentConfig(
     os.environ.get('ENABLE_USER_STATUS', 'True').lower() == 'true',
 )
 
+GUEST_ENABLED = PersistentConfig(
+    'GUEST_ENABLED',
+    'guest.enabled',
+    os.environ.get('GUEST_ENABLED', 'True').lower() == 'true',
+)
+
+GUEST_MAX_MESSAGES = PersistentConfig(
+    'GUEST_MAX_MESSAGES',
+    'guest.max_messages',
+    int(os.environ.get('GUEST_MAX_MESSAGES', '10')),
+)
+
+GUEST_EXPIRY_DAYS = PersistentConfig(
+    'GUEST_EXPIRY_DAYS',
+    'guest.expiry_days',
+    int(os.environ.get('GUEST_EXPIRY_DAYS', '7')),
+)
+
+GUEST_TOKEN_EXPIRY_HOURS = PersistentConfig(
+    'GUEST_TOKEN_EXPIRY_HOURS',
+    'guest.token_expiry_hours',
+    int(os.environ.get('GUEST_TOKEN_EXPIRY_HOURS', '24')),
+)
+
 ENABLE_EVALUATION_ARENA_MODELS = PersistentConfig(
     'ENABLE_EVALUATION_ARENA_MODELS',
     'evaluation.arena.enable',
