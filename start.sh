@@ -4,7 +4,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/backend"
 
-PORT="${PORT:-3000}"
+PORT="${PORT:-9001}"
 HOST="${HOST:-0.0.0.0}"
 MODE="${MODE:-prod}"
 
