@@ -68,7 +68,11 @@
 		if (!resetExpiryDate || !resetMessagesModalUser) return;
 
 		try {
-			const res = await resetGuestExpiry(localStorage.token, resetMessagesModalUser.id, resetExpiryDate);
+			const res = await resetGuestExpiry(
+				localStorage.token,
+				resetMessagesModalUser.id,
+				resetExpiryDate
+			);
 			if (res) {
 				toast.success($i18n.t('Expiry reset successfully'));
 				await loadGuestData();
@@ -95,22 +99,36 @@
 	<div class="space-y-4">
 		{#if guestStats}
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<div class="bg-white dark:bg-gray-850 rounded-xl p-4 border border-gray-100 dark:border-gray-800">
-					<div class="text-2xl font-semibold text-gray-900 dark:text-white">{guestStats.total ?? 0}</div>
+				<div
+					class="bg-white dark:bg-gray-850 rounded-xl p-4 border border-gray-100 dark:border-gray-800"
+				>
+					<div class="text-2xl font-semibold text-gray-900 dark:text-white">
+						{guestStats.total ?? 0}
+					</div>
 					<div class="text-sm text-gray-500 dark:text-gray-400">{$i18n.t('Total Guests')}</div>
 				</div>
-				<div class="bg-white dark:bg-gray-850 rounded-xl p-4 border border-gray-100 dark:border-gray-800">
-					<div class="text-2xl font-semibold text-green-600 dark:text-green-400">{guestStats.active ?? 0}</div>
+				<div
+					class="bg-white dark:bg-gray-850 rounded-xl p-4 border border-gray-100 dark:border-gray-800"
+				>
+					<div class="text-2xl font-semibold text-green-600 dark:text-green-400">
+						{guestStats.active ?? 0}
+					</div>
 					<div class="text-sm text-gray-500 dark:text-gray-400">{$i18n.t('Active')}</div>
 				</div>
-				<div class="bg-white dark:bg-gray-850 rounded-xl p-4 border border-gray-100 dark:border-gray-800">
-					<div class="text-2xl font-semibold text-yellow-600 dark:text-yellow-400">{guestStats.expiring_soon ?? 0}</div>
+				<div
+					class="bg-white dark:bg-gray-850 rounded-xl p-4 border border-gray-100 dark:border-gray-800"
+				>
+					<div class="text-2xl font-semibold text-yellow-600 dark:text-yellow-400">
+						{guestStats.expiring_soon ?? 0}
+					</div>
 					<div class="text-sm text-gray-500 dark:text-gray-400">{$i18n.t('Expiring Soon')}</div>
 				</div>
 			</div>
 		{/if}
 
-		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+		<div
+			class="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden"
+		>
 			<div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
 				<h2 class="text-lg font-medium text-gray-900 dark:text-white">{$i18n.t('Guest Users')}</h2>
 			</div>
@@ -122,7 +140,9 @@
 			{:else}
 				<div class="overflow-x-auto">
 					<table class="w-full text-sm text-left">
-						<thead class="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-850 dark:text-gray-400">
+						<thead
+							class="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-850 dark:text-gray-400"
+						>
 							<tr>
 								<th class="px-4 py-3">{$i18n.t('Email')}</th>
 								<th class="px-4 py-3">{$i18n.t('Created')}</th>
@@ -221,7 +241,10 @@
 				</p>
 			</div>
 			<div class="mb-4">
-				<label for="reset-max-messages" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+				<label
+					for="reset-max-messages"
+					class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+				>
 					{$i18n.t('Max Messages')}
 				</label>
 				<input
@@ -276,7 +299,10 @@
 				</p>
 			</div>
 			<div class="mb-4">
-				<label for="expiry-days" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+				<label
+					for="expiry-days"
+					class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+				>
 					{$i18n.t('Days from now')}
 				</label>
 				<input

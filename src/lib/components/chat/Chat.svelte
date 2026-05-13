@@ -3014,14 +3014,30 @@
 				on:click|stopPropagation={() => {}}
 			>
 				<div class="text-center">
-					<div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-						<svg xmlns="http://www.w3.org/2000/svg" class="size-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+					<div
+						class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="size-6 text-red-500"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke-width="1.5"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+							/>
 						</svg>
 					</div>
 					<h3 class="text-lg font-semibold mb-2">{$i18n.t('Message Limit Reached')}</h3>
 					<p class="text-gray-500 dark:text-gray-400 mb-6">
-						{$i18n.t("You've used all your guest messages. Sign up to continue using {{WEBUI_NAME}}.", { WEBUI_NAME: $WEBUI_NAME })}
+						{$i18n.t(
+							"You've used all your guest messages. Sign up to continue using {{WEBUI_NAME}}.",
+							{ WEBUI_NAME: $WEBUI_NAME }
+						)}
 					</p>
 					<div class="flex gap-3">
 						<button
@@ -3056,14 +3072,29 @@
 				on:click|stopPropagation={() => {}}
 			>
 				<div class="text-center">
-					<div class="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
-						<svg xmlns="http://www.w3.org/2000/svg" class="size-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+					<div
+						class="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="size-6 text-yellow-500"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke-width="1.5"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+							/>
 						</svg>
 					</div>
 					<h3 class="text-lg font-semibold mb-2">{$i18n.t('Session Expired')}</h3>
 					<p class="text-gray-500 dark:text-gray-400 mb-6">
-						{$i18n.t('Your guest session has expired. Sign up to continue using {{WEBUI_NAME}}.', { WEBUI_NAME: $WEBUI_NAME })}
+						{$i18n.t('Your guest session has expired. Sign up to continue using {{WEBUI_NAME}}.', {
+							WEBUI_NAME: $WEBUI_NAME
+						})}
 					</p>
 					<div class="flex gap-3">
 						<button
@@ -3117,12 +3148,18 @@
 			{/if}
 
 			{#if $user?.role === 'guest'}
-				<div class="w-full bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2 flex items-center gap-2 text-sm">
-					<div class="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs font-medium">
+				<div
+					class="w-full bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2 flex items-center gap-2 text-sm"
+				>
+					<div
+						class="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs font-medium"
+					>
 						{$i18n.t('Guest')}
 					</div>
 					<span class="text-gray-700 dark:text-gray-300">
-						{$i18n.t('{{remaining}} messages remaining', { remaining: $user?.guest_info?.remaining_messages ?? 0 })}
+						{$i18n.t('{{remaining}} messages remaining', {
+							remaining: $user?.guest_info?.remaining_messages ?? 0
+						})}
 					</span>
 				</div>
 			{/if}

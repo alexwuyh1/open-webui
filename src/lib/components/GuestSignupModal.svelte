@@ -101,23 +101,18 @@
 	}
 </script>
 
-<Modal
-	bind:show
-	size="sm"
-	containerClassName="flex items-center justify-center"
->
+<Modal bind:show size="sm" containerClassName="flex items-center justify-center">
 	<div class="flex flex-col items-center justify-center p-6 w-full">
 		<div class="text-xl font-medium mb-2 text-center">
 			{$i18n.t('Try as a Guest')}
 		</div>
 		<div class="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">
-			{$i18n.t('Experience with 10 messages, valid for 7 days. Set a password to save your session.')}
+			{$i18n.t(
+				'Experience with 10 messages, valid for 7 days. Set a password to save your session.'
+			)}
 		</div>
 
-		<form
-			class="w-full flex flex-col gap-4"
-			on:submit|preventDefault={handleSubmit}
-		>
+		<form class="w-full flex flex-col gap-4" on:submit|preventDefault={handleSubmit}>
 			<div>
 				<label for="guest-email" class="text-sm font-medium text-left mb-1 block">
 					{$i18n.t('Email')}
