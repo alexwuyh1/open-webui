@@ -34,19 +34,15 @@ WORKDIR /app
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
     apk add --no-cache git
 
-COPY package.json pnpm-lock.yaml ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm config set registry https://registry.npmmirror.com && \
-    npm install -g pnpm@9.14 && \
-    pnpm config set registry https://registry.npmmirror.com && \
-    pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci --force
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
-RUN pnpm run build
+RUN npm run build
 
 ######## WebUI backend ########
-FROM python:3.11.14-slim-bookworm AS base
+FROM python:3.11-slim-bookworm AS base
 
 # Use args
 ARG USE_CUDA
