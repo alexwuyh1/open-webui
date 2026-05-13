@@ -6,7 +6,6 @@ on:
     branches:
       - main
       - dev
-      - custom
     tags:
       - v*
 
@@ -90,7 +89,6 @@ jobs:
         id: build
         with:
           context: .
-          file: docker/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -196,7 +194,6 @@ jobs:
         id: build
         with:
           context: .
-          file: docker/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -303,7 +300,6 @@ jobs:
         id: build
         with:
           context: .
-          file: docker/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -408,7 +404,6 @@ jobs:
         id: build
         with:
           context: .
-          file: docker/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -512,7 +507,6 @@ jobs:
         id: build
         with:
           context: .
-          file: docker/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
