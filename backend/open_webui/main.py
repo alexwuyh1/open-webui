@@ -1977,15 +1977,17 @@ async def chat_completion(
                 max_messages = guest_info.get('max_messages', 10)
                 expires_at = guest_info.get('expires_at', 0)
                 ee = await get_event_emitter(metadata)
-                await ee({
-                    'type': 'chat:guest:info',
-                    'data': {
-                        'message_count': new_count,
-                        'max_messages': max_messages,
-                        'remaining_messages': max_messages - new_count,
-                        'expires_at': expires_at,
-                    },
-                })
+                await ee(
+                    {
+                        'type': 'chat:guest:info',
+                        'data': {
+                            'message_count': new_count,
+                            'max_messages': max_messages,
+                            'remaining_messages': max_messages - new_count,
+                            'expires_at': expires_at,
+                        },
+                    }
+                )
 
             form_data, metadata, events = await process_chat_payload(request, form_data, user, metadata, model)
 

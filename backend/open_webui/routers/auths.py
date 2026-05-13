@@ -155,7 +155,9 @@ async def create_session_response(
         **(
             {
                 'guest_info': {
-                    'remaining_messages': max(0, guest_info.get('max_messages', 10) - guest_info.get('message_count', 0)),
+                    'remaining_messages': max(
+                        0, guest_info.get('max_messages', 10) - guest_info.get('message_count', 0)
+                    ),
                     'max_messages': guest_info.get('max_messages', 10),
                     'message_count': guest_info.get('message_count', 0),
                     'expires_at': guest_info.get('expires_at', 0),
@@ -250,7 +252,9 @@ async def get_session_user(
         **(
             {
                 'guest_info': {
-                    'remaining_messages': max(0, guest_info.get('max_messages', 10) - guest_info.get('message_count', 0)),
+                    'remaining_messages': max(
+                        0, guest_info.get('max_messages', 10) - guest_info.get('message_count', 0)
+                    ),
                     'max_messages': guest_info.get('max_messages', 10),
                     'message_count': guest_info.get('message_count', 0),
                     'expires_at': guest_info.get('expires_at', 0),
@@ -869,7 +873,7 @@ async def guest_signup(
     user = await Users.insert_guest_user(
         id=user_id,
         email=form_data.email.lower(),
-        name=f"Guest_{user_id[:8]}",
+        name=f'Guest_{user_id[:8]}',
         max_messages=max_messages,
         expiry_days=expiry_days,
         password=hashed_password,
@@ -972,18 +976,20 @@ async def list_guest_users(
         max_messages = guest_info.get('max_messages', 10)
         is_active = now <= expires_at and message_count < max_messages
 
-        guest_users.append(GuestUserResponse(
-            id=u.id,
-            email=u.email,
-            name=u.name,
-            role=u.role,
-            message_count=message_count,
-            max_messages=max_messages,
-            remaining_messages=max(0, max_messages - message_count),
-            expires_at=expires_at,
-            created_at=guest_info.get('created_at', 0),
-            is_active=is_active,
-        ))
+        guest_users.append(
+            GuestUserResponse(
+                id=u.id,
+                email=u.email,
+                name=u.name,
+                role=u.role,
+                message_count=message_count,
+                max_messages=max_messages,
+                remaining_messages=max(0, max_messages - message_count),
+                expires_at=expires_at,
+                created_at=guest_info.get('created_at', 0),
+                is_active=is_active,
+            )
+        )
 
     return GuestListResponse(
         users=guest_users,
@@ -1045,7 +1051,9 @@ async def reset_guest_expiry(
 
     guest_info = result.info.get('guest', {})
     now = int(time.time())
-    is_active = now <= guest_info.get('expires_at', 0) and guest_info.get('message_count', 0) < guest_info.get('max_messages', 10)
+    is_active = now <= guest_info.get('expires_at', 0) and guest_info.get('message_count', 0) < guest_info.get(
+        'max_messages', 10
+    )
 
     return GuestUserResponse(
         id=result.id,
@@ -1082,7 +1090,9 @@ async def reset_guest(
     result = await Users.get_user_by_id(user_id, db=db)
     guest_info = result.info.get('guest', {})
     now = int(time.time())
-    is_active = now <= guest_info.get('expires_at', 0) and guest_info.get('message_count', 0) < guest_info.get('max_messages', 10)
+    is_active = now <= guest_info.get('expires_at', 0) and guest_info.get('message_count', 0) < guest_info.get(
+        'max_messages', 10
+    )
 
     return GuestUserResponse(
         id=result.id,

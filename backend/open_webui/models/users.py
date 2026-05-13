@@ -868,6 +868,7 @@ class UsersTable:
 
             if password:
                 from open_webui.models.auths import Auth, AuthModel
+
                 auth = AuthModel(**{'id': id, 'email': email, 'password': password, 'active': True})
                 auth_result = Auth(**auth.model_dump())
                 db.add(auth_result)
@@ -879,9 +880,7 @@ class UsersTable:
             else:
                 return None
 
-    async def update_guest_message_count(
-        self, id: str, count: int, db: Optional[AsyncSession] = None
-    ) -> bool:
+    async def update_guest_message_count(self, id: str, count: int, db: Optional[AsyncSession] = None) -> bool:
         try:
             async with get_async_db_context(db) as db:
                 result = await db.execute(select(User).filter_by(id=id))
@@ -891,6 +890,7 @@ class UsersTable:
                 if 'guest' not in user.info:
                     return False
                 import copy
+
                 info = copy.deepcopy(user.info)
                 info['guest']['message_count'] = count
                 user.info = info
@@ -916,7 +916,9 @@ class UsersTable:
                             info=func.jsonb_set(
                                 User.info,
                                 ['guest', 'message_count'],
-                                (cast(User.info['guest']['message_count'].as_integer(), BigInteger) + 1).cast(Text).cast(JSONB),
+                                (cast(User.info['guest']['message_count'].as_integer(), BigInteger) + 1)
+                                .cast(Text)
+                                .cast(JSONB),
                             )
                         )
                         .returning(cast(User.info['guest']['message_count'].as_integer(), BigInteger))
@@ -930,6 +932,7 @@ class UsersTable:
                     if not user or not user.info or 'guest' not in user.info:
                         return None
                     import copy
+
                     info = copy.deepcopy(user.info)
                     current_count = info['guest'].get('message_count', 0)
                     if current_count >= max_messages:
@@ -951,6 +954,7 @@ class UsersTable:
                 if not user or not user.info or 'guest' not in user.info:
                     return None
                 import copy
+
                 info = copy.deepcopy(user.info)
                 info['guest']['message_count'] = 0
                 if new_max is not None:
@@ -972,6 +976,7 @@ class UsersTable:
                 if not user or not user.info or 'guest' not in user.info:
                     return None
                 import copy
+
                 info = copy.deepcopy(user.info)
                 now = int(time.time())
                 if new_expiry_days is not None:
@@ -993,9 +998,7 @@ class UsersTable:
     ) -> tuple[list[UserModel], int]:
         try:
             async with get_async_db_context(db) as db:
-                count_result = await db.execute(
-                    select(func.count()).select_from(User).filter(User.role == 'guest')
-                )
+                count_result = await db.execute(select(func.count()).select_from(User).filter(User.role == 'guest'))
                 total = count_result.scalar() or 0
 
                 result = await db.execute(
@@ -1014,22 +1017,25 @@ class UsersTable:
         try:
             async with get_async_db_context(db) as db:
                 now = int(time.time())
-                total_result = await db.execute(
-                    select(func.count()).select_from(User).filter(User.role == 'guest')
-                )
+                total_result = await db.execute(select(func.count()).select_from(User).filter(User.role == 'guest'))
                 total = total_result.scalar() or 0
 
                 active_result = await db.execute(
-                    select(func.count()).select_from(User).filter(
+                    select(func.count())
+                    .select_from(User)
+                    .filter(
                         User.role == 'guest',
                         cast(User.info['guest']['expires_at'].as_integer(), BigInteger) > now,
-                        cast(User.info['guest']['message_count'].as_integer(), BigInteger) < cast(User.info['guest']['max_messages'].as_integer(), BigInteger),
+                        cast(User.info['guest']['message_count'].as_integer(), BigInteger)
+                        < cast(User.info['guest']['max_messages'].as_integer(), BigInteger),
                     )
                 )
                 active = active_result.scalar() or 0
 
                 expired_result = await db.execute(
-                    select(func.count()).select_from(User).filter(
+                    select(func.count())
+                    .select_from(User)
+                    .filter(
                         User.role == 'guest',
                         cast(User.info['guest']['expires_at'].as_integer(), BigInteger) <= now,
                     )
@@ -1037,9 +1043,12 @@ class UsersTable:
                 expired = expired_result.scalar() or 0
 
                 limit_reached_result = await db.execute(
-                    select(func.count()).select_from(User).filter(
+                    select(func.count())
+                    .select_from(User)
+                    .filter(
                         User.role == 'guest',
-                        cast(User.info['guest']['message_count'].as_integer(), BigInteger) >= cast(User.info['guest']['max_messages'].as_integer(), BigInteger),
+                        cast(User.info['guest']['message_count'].as_integer(), BigInteger)
+                        >= cast(User.info['guest']['max_messages'].as_integer(), BigInteger),
                     )
                 )
                 limit_reached = limit_reached_result.scalar() or 0
