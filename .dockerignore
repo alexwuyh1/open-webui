@@ -35,6 +35,7 @@ logs/
 _old/
 _test/
 
+docker/
 test/
 docs/
 kubernetes/

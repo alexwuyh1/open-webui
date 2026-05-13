@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - custom
+    paths-ignore:
+      - 'docker/**'
+      - '.github/**'
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+      - '.dockerignore'
   workflow_dispatch:
 
 env:

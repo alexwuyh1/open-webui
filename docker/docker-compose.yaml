@@ -9,11 +9,11 @@ services:
     image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:${WEBUI_DOCKER_TAG-custom-latest}
+    image: ${WEBUI_IMAGE:-ghcr.io/open-webui/open-webui}:${WEBUI_DOCKER_TAG-main}
     container_name: open-webui
-    pull_policy: always
+    network_mode: ${NETWORK_MODE:-}
     volumes:
-      - open-webui:/app/backend/data
+      - ${DATA_PATH:-open-webui}:/app/backend/data
     depends_on:
       - ollama
     ports:
