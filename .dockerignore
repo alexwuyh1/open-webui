@@ -36,8 +36,7 @@ _old/
 _test/
 
 test/
-docs/**/*
-!docs/CHANGELOG.md
+docs/
 kubernetes/
 openspec/
 

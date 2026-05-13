@@ -16,7 +16,7 @@
 
 Passionate about open-source AI? [Join our team →](https://careers.openwebui.com/)
 
-![Open WebUI Demo](./demo.png)
+![Open WebUI Demo](./docs/demo.png)
 
 > [!TIP]  
 > **Looking for an [Enterprise Plan](https://docs.openwebui.com/enterprise)?** – **[Speak with Our Sales Team Today!](https://docs.openwebui.com/enterprise)**
