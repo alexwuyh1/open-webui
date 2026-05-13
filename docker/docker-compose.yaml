@@ -6,7 +6,7 @@ services:
     pull_policy: always
     tty: true
     restart: unless-stopped
-    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
+    image: docker.io/ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
 
   open-webui:
     image: ${WEBUI_IMAGE:-ghcr.io/open-webui/open-webui}:${WEBUI_DOCKER_TAG-main}
