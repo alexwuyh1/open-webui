@@ -178,13 +178,13 @@ else
         DEFAULT_COMPOSE_COMMAND+=" -f docker/docker-compose.gpu.yaml"
     fi
     if [[ $enable_api == true ]]; then
-        DEFAULT_COMPOSE_COMMAND+=" -f docker-compose.api.yaml"
+        DEFAULT_COMPOSE_COMMAND+=" -f docker/docker-compose.api.yaml"
         if [[ -n $api_port ]]; then
             export OLLAMA_WEBAPI_PORT=$api_port # Set OLLAMA_WEBAPI_PORT environment variable
         fi
     fi
     if [[ -n $data_dir ]]; then
-        DEFAULT_COMPOSE_COMMAND+=" -f docker-compose.data.yaml"
+        DEFAULT_COMPOSE_COMMAND+=" -f docker/docker-compose.data.yaml"
         export OLLAMA_DATA_DIR=$data_dir # Set OLLAMA_DATA_DIR environment variable
     fi
     if [[ $enable_playwright == true ]]; then

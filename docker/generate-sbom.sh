@@ -11,10 +11,10 @@
 #   3. Syft scans these resolved files, not the filesystem
 #
 # Usage:
-#   ./scripts/generate-sbom.sh              # generate sbom.cdx.json from manifests
-#   ./scripts/generate-sbom.sh docker       # generate from Docker image (best license coverage)
-#   ./scripts/generate-sbom.sh docker IMG   # generate from a specific image
-#   ./scripts/generate-sbom.sh validate     # validate existing SBOM
+#   ./docker/generate-sbom.sh              # generate sbom.cdx.json from manifests
+#   ./docker/generate-sbom.sh docker       # generate from Docker image (best license coverage)
+#   ./docker/generate-sbom.sh docker IMG   # generate from a specific image
+#   ./docker/generate-sbom.sh validate     # validate existing SBOM
 #
 # Requirements:
 #   - syft (brew install syft)
@@ -139,7 +139,7 @@ try:
     with open('$OUTPUT') as f:
         data = json.load(f)
 except FileNotFoundError:
-    print('  ✗ sbom.cdx.json not found — run ./scripts/generate-sbom.sh first')
+    print('  ✗ sbom.cdx.json not found — run ./docker/generate-sbom.sh first')
     sys.exit(1)
 
 issues = []

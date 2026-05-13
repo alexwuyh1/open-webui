@@ -178,7 +178,7 @@ def parse_section(section):
 
 
 try:
-    changelog_path = BASE_DIR / 'CHANGELOG.md'
+    changelog_path = BASE_DIR / 'docker' / 'CHANGELOG.md'
     with open(str(changelog_path.absolute()), encoding='utf8') as file:
         changelog_content = file.read()
 

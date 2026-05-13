@@ -44,4 +44,3 @@ openspec/
 npm-debug.log*
 .ipynb_checkpoints
 
-docker/
