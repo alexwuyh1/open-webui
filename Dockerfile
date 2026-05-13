@@ -39,7 +39,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm config set registry https://registry.npmmirror.com && \
     npm install -g pnpm@9.14 && \
     pnpm config set registry https://registry.npmmirror.com && \
-    pnpm install --frozen-lockfile --ignore-scripts
+    pnpm install --frozen-lockfile
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
