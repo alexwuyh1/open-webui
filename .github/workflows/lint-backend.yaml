@@ -1,0 +1,27 @@
+name: Lint Backend
+
+on:
+  push:
+    branches:
+      - custom
+
+jobs:
+  lint-backend:
+    name: Lint Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install "ruff>=0.15.5"
+
+      - name: Ruff format check
+        run: ruff format --check . --exclude .venv --exclude venv

@@ -9,11 +9,9 @@ services:
     image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
 
   open-webui:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    image: ghcr.io/open-webui/open-webui:${WEBUI_DOCKER_TAG-main}
+    image: ghcr.io/open-webui/open-webui:${WEBUI_DOCKER_TAG-custom-latest}
     container_name: open-webui
+    pull_policy: always
     volumes:
       - open-webui:/app/backend/data
     depends_on:
