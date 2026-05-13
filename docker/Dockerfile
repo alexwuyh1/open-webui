@@ -163,7 +163,7 @@ RUN if [ "$USE_OLLAMA" = "true" ]; then \
 
 # copy built frontend files
 COPY --chown=$UID:$GID --from=build /app/build /app/build
-COPY --chown=$UID:$GID --from=build /app/docker/CHANGELOG.md /app/CHANGELOG.md
+COPY --chown=$UID:$GID --from=build /app/docker/CHANGELOG.md /app/backend/docker/CHANGELOG.md
 COPY --chown=$UID:$GID --from=build /app/package.json /app/package.json
 
 # copy backend files
